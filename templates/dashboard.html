@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Osu! Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body { 
+            background-color: #0f0f0f; 
+            color: #efefef; 
+            font-family: 'Segoe UI', sans-serif; 
+            min-height: 100vh;
+            background-image: url('/static/img/bg.jpg');
+            background-size: cover; background-position: center; background-attachment: fixed;
+        }
+        body::before {
+            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); z-index: -1; pointer-events: none;
+        }
+        .btn { border-radius: 25px !important; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card-request { 
+            position: relative; 
+            border: 1px solid rgba(255, 255, 255, 0.15); 
+            border-radius: 20px; 
+            overflow: hidden; 
+            margin-bottom: 20px; 
+            transition: all 0.3s ease;
+            animation: slideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+            cursor: pointer;
+            
+            /* Цвет подложки */
+            background-color: #2a2a2a;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* РЕАЛЬНЫЙ СЛОЙ ФОНА */
+        .card-background-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; 
+            background-position: center;
+            
+            filter: blur(4px) brightness(0.5); 
+            transform: scale(1.1); 
+            z-index: 0;
+        }
+
+        .card-request:hover { 
+            transform: translateY(-5px); 
+            border-color: rgba(255, 102, 170, 0.6); 
+            box-shadow: 0 20px 40px rgba(255, 102, 170, 0.2);
+        }
+
+        .request-content { 
+            position: relative; 
+            z-index: 1; 
+            padding: 25px; 
+            background: rgba(0, 0, 0, 0.3); 
+        }
+        
+        .msg-box {
+            background-color: rgba(0, 0, 0, 0.5); padding: 12px; border-radius: 12px; margin-bottom: 15px;
+            font-size: 0.9rem; color: #eee; font-style: italic; border: 1px solid rgba(255, 255, 255, 0.15);
+            white-space: pre-wrap; word-wrap: break-word;
+        }
+
+        .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
+        .action-buttons .btn { flex: 1; font-size: 0.8rem; font-weight: 700; padding: 10px 0; }
+
+        h6 { text-shadow: 0 2px 4px rgba(0,0,0,0.8); font-weight: 700; color: #fff !important; }
+        p.map-title { text-shadow: 0 2px 4px rgba(0,0,0,0.8); font-size: 1.1rem; margin-bottom: 15px; }
+        
+        .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .online { background-color: #28a745; box-shadow: 0 0 8px #28a745; }
+        .offline { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <img src="/static/img/osu.png" style="width: 50px; height: 50px; margin-right: 15px; filter: drop-shadow(0 0 5px rgba(255,102,170,0.5));" alt="Logo">
+            <h2 style="color: #ff66aa; font-weight: bold; margin: 0; text-shadow: 0 0 10px rgba(255,102,170,0.3);">
+                Osu! Dashboard 
+                <!-- НАДПИСЬ BETA -->
+                <span style="font-size: 0.5em; color: #fff; opacity: 0.6; vertical-align: top; margin-left: 5px;">beta</span>
+            </h2>
+        </div>
+        
+        <div class="d-flex align-items-center gap-3">
+            <div class="small p-2 rounded bg-dark border border-secondary"><span class="status-dot offline" id="dot"></span><span id="status-text">Ожидание...</span></div>
+            <a href="/settings" class="btn btn-outline-secondary btn-sm">⚙️ Настройки</a>
+        </div>
+    </div>
+
+    <hr class="border-secondary my-4">
+
+    <div class="d-flex justify-content-between align-items-end mb-3">
+        <h4 class="m-0">📥 Очередь запросов</h4>
+        <button class="btn btn-sm btn-outline-danger" onclick="clearAll()">🗑️ Очистить список</button>
+    </div>
+    
+    <div id="requests-container" class="row"></div>
+</div>
+
+<audio id="alert-sound" src="/static/alert.wav" preload="auto"></audio>
+
+<script>
+    const socket = io();
+    const sound = document.getElementById('alert-sound');
+    const dot = document.getElementById('dot');
+    const statusText = document.getElementById('status-text');
+
+    document.addEventListener("DOMContentLoaded", () => {
+        try { loadFromStorage(); } catch (e) { localStorage.removeItem('osu_requests'); }
+    });
+
+    socket.on('connect', () => { dot.className = 'status-dot online'; statusText.innerText = 'Online'; });
+    socket.on('disconnect', () => { dot.className = 'status-dot offline'; statusText.innerText = 'Offline'; });
+    socket.on('new_request', function(data) {
+        sound.play().catch(() => {});
+        const uniqueId = 'card-' + Date.now();
+        const requestData = { id: uniqueId, ...data };
+        saveToStorage(requestData);
+        renderCard(requestData);
+    });
+
+    function extractLink(text) { if (!text) return null; const m = text.match(/(https?:\/\/[^\s]+)/); return m ? m[0] : null; }
+    function cleanMessage(text) { if (!text) return ""; return text.replace(/(https?:\/\/[^\s]+)/g, '').trim(); }
+    function openCardLink(url) { if (url && url !== 'null') window.open(url, '_blank'); }
+
+    function renderCard(data) {
+        if (!data || !data.user) return;
+        const container = document.getElementById('requests-container');
+        const downloadLink = extractLink(data.full_msg);
+        const cleanMsg = cleanMessage(data.full_msg);
+        
+        let bg = data.bg_url;
+        if (!bg || bg === "null" || bg === "None" || bg === "") {
+            bg = "https://osu.ppy.sh/images/layout/beatmaps/default-bg.jpg";
+        }
+        
+        const msgDisplay = cleanMsg ? `"${cleanMsg}"` : '<span style="opacity:0.5; font-size: 0.8rem">Без комментария</span>';
+
+        const cardHtml = `
+            <div class="col-md-6 col-lg-4 mb-4" id="${data.id}">
+                <div class="card-request shadow" onclick="openCardLink('${downloadLink}')">
+                    
+                    <div class="card-background-layer" style="background-image: url('${bg}');"></div>
+
+                    <div class="request-content">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="m-0 d-flex align-items-center">
+                                <img src="/static/img/twitch.png" width="20" height="20" class="me-2"> 
+                                ${data.user}
+                            </h6>
+                            <img src="/static/img/osu.png" width="24" height="24" style="filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));">
+                        </div>
+                        <p class="map-title text-white fw-bold mb-3 text-truncate" title="${data.map_name}">${data.map_name}</p>
+                        <div class="msg-box">${msgDisplay}</div>
+                        
+                        <div class="action-buttons">
+                            <button class="btn btn-success" 
+                                data-user="${data.user}" 
+                                data-map="${data.map_name}" 
+                                data-bg="${bg}" 
+                                onclick="event.stopPropagation(); acceptRequest(this, '${data.id}', '@${data.user}, принято! 🔨')">
+                                ПРИНЯТЬ
+                            </button>
+                            
+                            <button class="btn btn-danger" 
+                                onclick="event.stopPropagation(); declineRequest('${data.id}', '@${data.user}, отказано. ❌')">
+                                ОТКАЗ
+                            </button>
+                            
+                            <button class="btn btn-light" 
+                                onclick="event.stopPropagation(); finishRequest('${data.id}', '@${data.user}, готово! ✅')">
+                                ГОТОВО
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        container.insertAdjacentHTML('afterbegin', cardHtml);
+    }
+
+    function saveToStorage(obj) { try { let reqs = JSON.parse(localStorage.getItem('osu_requests')) || []; reqs.push(obj); localStorage.setItem('osu_requests', JSON.stringify(reqs)); } catch(e){} }
+    function removeFromStorage(id) { let reqs = JSON.parse(localStorage.getItem('osu_requests')) || []; reqs = reqs.filter(r => r.id !== id); localStorage.setItem('osu_requests', JSON.stringify(reqs)); }
+    function loadFromStorage() { (JSON.parse(localStorage.getItem('osu_requests')) || []).forEach(renderCard); }
+    function clearStorage() { localStorage.removeItem('osu_requests'); }
+
+    function acceptRequest(btn, id, msg) {
+        btn.disabled = true; btn.classList.replace('btn-success', 'btn-secondary'); btn.innerText = "⏳..."; 
+        socket.emit('bot_action', { message: msg });
+        socket.emit('set_current_track', { user: btn.getAttribute('data-user'), map_name: btn.getAttribute('data-map'), bg_url: btn.getAttribute('data-bg') });
+    }
+    function finishRequest(id, msg) { if (msg) socket.emit('bot_action', { message: msg }); socket.emit('mark_obs_done'); removeCardVisuals(id); }
+    function declineRequest(id, msg) { if (msg) socket.emit('bot_action', { message: msg }); socket.emit('mark_obs_rejected'); removeCardVisuals(id); }
+    function removeCardVisuals(id) {
+        removeFromStorage(id);
+        const card = document.getElementById(id);
+        if (card) { card.style.transition = "all 0.4s ease"; card.style.opacity = "0"; card.style.transform = "translateY(20px) scale(0.9)"; setTimeout(() => card.remove(), 400); }
+    }
+    function clearAll() { if(confirm("Очистить все карточки?")) { document.getElementById('requests-container').innerHTML = ''; clearStorage(); } }
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
