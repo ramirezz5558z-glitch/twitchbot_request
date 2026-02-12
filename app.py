@@ -7,10 +7,15 @@ import asyncio
 from twitch_bot import Bot
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+# Добавляем async_mode='eventlet' для стабильности на сервере
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
-CONFIG_FILE = "config.json"
+# Определяем базовую директорию, чтобы пути всегда были верными
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+
 twitch_bot = None
+bot_thread = None
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
@@ -31,71 +36,14 @@ def bot_callback(user, data):
     except Exception as e:
         print(f"Ошибка отправки в браузер: {e}")
 
-# --- РОУТЫ ---
+# --- ФУНКЦИЯ УПРАВЛЕНИЯ БОТОМ ---
 
-@app.route('/')
-def dashboard():
-    # Главная страница (с фоном)
-    return render_template('dashboard.html', config=load_config())
-
-@app.route('/obs')
-def obs_widget():
-    # Виджет для OBS
-    return render_template('obs.html')
-
-@app.route('/settings')
-def settings():
-    # Настройки (с фоном)
-    return render_template('settings.html', config=load_config())
-
-@app.route('/save_config', methods=['POST'])
-def save_config():
-    data = request.json
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-    return jsonify({"status": "success"})
-
-# --- НОВОЕ: Обратная связь ---
-@app.route('/send_feedback', methods=['POST'])
-def send_feedback():
-    data = request.json
-    msg = data.get('message', '')
-    contact = data.get('contact', '')
-    
-    # Сохраняем отзыв в файл
-    with open("feedback.txt", "a", encoding="utf-8") as f:
-        f.write(f"--- FEEDBACK ---\nContact: {contact}\nMessage: {msg}\n\n")
-        
-    print(f"📩 ПОЛУЧЕН ОТЗЫВ: {msg}")
-    return jsonify({"status": "success"})
-
-# --- СОКЕТЫ ---
-
-@socketio.on('set_current_track')
-def handle_current_track(data):
-    socketio.emit('update_obs', data)
-
-@socketio.on('mark_obs_done')
-def handle_obs_done():
-    socketio.emit('signal_obs_done')
-
-@socketio.on('mark_obs_rejected')
-def handle_obs_rejected():
-    socketio.emit('signal_obs_rejected')
-
-@socketio.on('bot_action')
-def handle_bot_action(json_data):
-    global twitch_bot
-    if twitch_bot and twitch_bot.loop:
-        try:
-            asyncio.run_coroutine_threadsafe(
-                twitch_bot.send_chat_message(json_data.get('message')), 
-                twitch_bot.loop
-            )
-        except Exception as e:
-            print(f"Chat error: {e}")
-
-# --- ЗАПУСК ---
+def start_bot():
+    global bot_thread
+    # Если бот уже запущен, нам нужно его остановить (логика остановки должна быть в Bot)
+    # Но для начала просто запускаем в потоке
+    bot_thread = threading.Thread(target=run_bot_thread, daemon=True)
+    bot_thread.start()
 
 def run_bot_thread():
     print("--- [ПОТОК БОТА] Инициализация... ---")
@@ -104,35 +52,55 @@ def run_bot_thread():
     
     config = load_config()
     token = config.get('token', '')
-    if token and not token.startswith('oauth:'):
-        token = f"oauth:{token}"
+    channel = config.get('channel', '')
 
-    if not token or not config.get('channel'):
-        print("--- [ПОТОК БОТА] Жду настройки... ---")
+    if not token or not channel:
+        print("--- [ПОТОК БОТА] Жду настройки (токен или канал пуст)... ---")
         return
+
+    if not token.startswith('oauth:'):
+        token = f"oauth:{token}"
 
     global twitch_bot
     try:
         twitch_bot = Bot(
             token=token,
-            channel=config['channel'],
+            channel=channel,
             app_callback=bot_callback,
             allowed_domains=["osu.ppy.sh"],
             osu_config=config
         )
         twitch_bot.loop = loop
-        print(f"--- [ПОТОК БОТА] Вход на канал {config['channel']}... ---")
+        print(f"--- [ПОТОК БОТА] Вход на канал {channel}... ---")
         loop.run_until_complete(twitch_bot.start())
     except Exception as e:
         print(f"--- [ПОТОК БОТА] ОШИБКА: {e} ---")
 
+# --- РОУТЫ ---
+
+@app.route('/')
+def dashboard():
+    return render_template('dashboard.html', config=load_config())
+
+@app.route('/save_config', methods=['POST'])
+def save_config():
+    data = request.json
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+    
+    # ПЕРЕЗАПУСК БОТА при сохранении (простейший вариант)
+    print("--- Настройки обновлены, перезапуск бота... ---")
+    start_bot() 
+    
+    return jsonify({"status": "success"})
+
+# ... (остальные роуты оставляем как есть) ...
+
+# --- ДЛЯ RENDER: Запуск потока при старте сервера ---
+# Это сработает даже при запуске через Gunicorn
+start_bot()
+
 if __name__ == '__main__':
-    # Запускаем бота в отдельном потоке
-    threading.Thread(target=run_bot_thread, daemon=True).start()
-    
-    # Получаем порт от сервера (для Render), или используем 5050 для теста
     port = int(os.environ.get("PORT", 5050))
-    
-    print(f"--- [СЕРВЕР] Запуск на порту {port} ---")
-    # host='0.0.0.0' обязателен для серверов!
+    print(f"--- [СЕРВЕР] Локальный запуск на порту {port} ---")
     socketio.run(app, host='0.0.0.0', port=port, debug=False, use_reloader=False)

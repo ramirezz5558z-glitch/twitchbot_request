@@ -2,78 +2,129 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Настройки</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки | Osu! Bot</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
-        body { background-color: #0f0f0f; color: #efefef; font-family: 'Segoe UI', sans-serif; min-height: 100vh; background-image: url('/static/img/bg.jpg'); background-size: cover; background-position: center; background-attachment: fixed; }
-        body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: -1; pointer-events: none; }
+        body { 
+            background-color: #0f0f0f; 
+            color: #efefef; 
+            font-family: 'Segoe UI', sans-serif; 
+            min-height: 100vh; 
+            background-image: url('/static/img/bg.jpg'); 
+            background-size: cover; 
+            background-position: center; 
+            background-attachment: fixed; 
+        }
+        body::before { 
+            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0, 0, 0, 0.85); z-index: -1; 
+        }
         .container { max-width: 900px; padding-top: 40px; }
         .btn, .form-control { border-radius: 50px !important; }
-        .section-card { padding: 30px; border-radius: 25px; margin-bottom: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); color: white; border: 1px solid rgba(255,255,255,0.05); }
+        
+        .section-card { 
+            padding: 30px; 
+            border-radius: 25px; 
+            margin-bottom: 25px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+            border: 1px solid rgba(255,255,255,0.05); 
+        }
         .section-twitch { background: linear-gradient(135deg, #6441a5 0%, #2a0845 100%); }
         .section-osu { background: linear-gradient(135deg, #ff66aa 0%, #ff0055 100%); }
         .section-feedback { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        .section-card input { background-color: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: white; }
-        .obs-box { background: #B5B8B1; color: #1a1a1a; border: 1px solid #999; padding: 25px; border-radius: 25px; margin-bottom: 40px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
-        .btn-save { background-color: white; color: black; font-weight: 800; padding: 15px 60px; border-radius: 50px; border: none; transition: 0.3s; }
-        .btn-save:hover { transform: scale(1.05); }
-        .custom-icon { width: 45px; height: 45px; object-fit: contain; margin-right: 15px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
+        
+        .form-control {
+            background-color: rgba(0, 0, 0, 0.4); 
+            border: 1px solid rgba(255, 255, 255, 0.15); 
+            color: white !important; 
+        }
+        .form-control::placeholder { color: rgba(255,255,255,0.4); }
+
+        .obs-box { 
+            background: #e9ecef; 
+            color: #1a1a1a; 
+            padding: 25px; 
+            border-radius: 25px; 
+            margin-bottom: 40px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
+        }
+        
+        .btn-save { 
+            background-color: white; 
+            color: black; 
+            font-weight: 800; 
+            padding: 15px 60px; 
+            border: none; 
+            transition: 0.3s; 
+            border-radius: 50px;
+        }
+        .btn-save:hover { transform: scale(1.05); background-color: #f0f0f0; }
+        
+        .custom-icon { width: 40px; height: 40px; margin-right: 15px; }
+        .help-link { font-size: 0.8rem; color: #ddd; text-decoration: underline; }
     </style>
 </head>
 <body>
-<div class="container">
+
+<div class="container pb-5">
     <div class="d-flex justify-content-between align-items-center mb-5">
-        <h2 class="fw-bold text-white">⚙️ Панель управления</h2>
-        <a href="/" class="btn btn-outline-light px-4">⬅️ Назад</a>
+        <h2 class="fw-bold">⚙️ Настройки</h2>
+        <a href="/" class="btn btn-outline-light px-4">⬅️ В Dashboard</a>
     </div>
-    <div class="obs-box d-flex align-items-center justify-content-between">
-        <div><label class="fw-bold mb-1 fs-5">🎬 Ссылка для OBS</label><div class="text-dark small opacity-75">750x200 px</div></div>
+
+    <div class="obs-box d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <label class="fw-bold mb-1 fs-5">🎬 Ссылка для OBS</label>
+            <div class="small opacity-75">Добавьте в OBS как "Браузер" (750x200)</div>
+        </div>
         <div class="input-group" style="max-width: 450px;">
-            <input type="text" class="form-control bg-white text-dark border-secondary" value="http://127.0.0.1:5050/obs" id="obs-link" readonly>
-            <button class="btn btn-dark px-4" onclick="copyObsLink()">Копия</button>
+            <input type="text" class="form-control bg-white text-dark" id="obs-link" readonly>
+            <button class="btn btn-dark" onclick="copyObsLink()">Копировать</button>
         </div>
     </div>
-    <div class="row g-4">
+
+    <div class="row">
         <div class="col-md-6">
-            <div class="section-card section-twitch">
-                <div class="d-flex align-items-center mb-4"><img src="/static/img/twitch.png" class="custom-icon"><h3 class="m-0 fw-bold">Twitch</h3></div>
-                <div class="mb-3"><label>OAuth Token</label><input type="password" id="token" class="form-control" value="{{ config.token or '' }}"></div>
-                <div class="mb-3"><label>Канал</label><input type="text" id="channel" class="form-control" value="{{ config.channel or '' }}"></div>
+            <div class="section-card section-twitch h-100">
+                <div class="d-flex align-items-center mb-4">
+                    <img src="/static/img/twitch.png" class="custom-icon">
+                    <h4 class="m-0 fw-bold">Twitch</h4>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label d-flex justify-content-between">
+                        OAuth Token <a href="https://twitchtokengenerator.com/" target="_blank" class="help-link">Получить</a>
+                    </label>
+                    <input type="password" id="token" class="form-control" value="{{ config.token or '' }}" placeholder="oauth:xxxxxxx">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Имя канала</label>
+                    <input type="text" id="channel" class="form-control" value="{{ config.channel or '' }}" placeholder="shroud">
+                </div>
             </div>
         </div>
+
         <div class="col-md-6">
-            <div class="section-card section-osu">
-                <div class="d-flex align-items-center mb-4"><img src="/static/img/osu.png" class="custom-icon"><h3 class="m-0 fw-bold">Osu! API</h3></div>
-                <div class="mb-3"><label>Client ID</label><input type="text" id="osu_id" class="form-control" value="{{ config.osu_client_id or '' }}"></div>
-                <div class="mb-3"><label>Client Secret</label><input type="password" id="osu_secret" class="form-control" value="{{ config.osu_client_secret or '' }}"></div>
-                <div class="mb-3"><label>Username</label><input type="text" id="osu_user" class="form-control" value="{{ config.osu_username or '' }}"></div>
+            <div class="section-card section-osu h-100">
+                <div class="d-flex align-items-center mb-4">
+                    <img src="/static/img/osu.png" class="custom-icon">
+                    <h4 class="m-0 fw-bold">Osu! API v2</h4>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Client ID & Secret</label>
+                    <input type="text" id="osu_id" class="form-control mb-2" placeholder="ID" value="{{ config.osu_client_id or '' }}">
+                    <input type="password" id="osu_secret" class="form-control" placeholder="Secret" value="{{ config.osu_client_secret or '' }}">
+                </div>
+                <div>
+                    <label class="form-label">Игровой ник</label>
+                    <input type="text" id="osu_user" class="form-control" value="{{ config.osu_username or '' }}">
+                </div>
             </div>
         </div>
     </div>
+
     <div class="section-card section-feedback mt-4">
-        <h5 class="mb-3 fw-bold">📩 Написать разработчику</h5>
-        <div class="row g-3">
-            <div class="col-md-4"><input type="text" id="fb_contact" class="form-control" placeholder="Контакт"></div>
-            <div class="col-md-8"><div class="input-group"><input type="text" id="fb_msg" class="form-control" placeholder="Сообщение"><button class="btn btn-dark px-4" onclick="sendFeedback()">Send</button></div></div>
-        </div>
-    </div>
-    <div class="text-center mt-5 mb-5"><button onclick="saveConfig()" class="btn-save">💾 СОХРАНИТЬ</button></div>
-</div>
-<script>
-    function copyObsLink() { var t = document.getElementById("obs-link"); t.select(); document.execCommand("copy"); alert("Скопировано!"); }
-    function saveConfig() {
-        fetch('/save_config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-            token: document.getElementById('token').value, channel: document.getElementById('channel').value,
-            osu_client_id: document.getElementById('osu_id').value, osu_client_secret: document.getElementById('osu_secret').value, osu_username: document.getElementById('osu_user').value
-        })}).then(r=>r.json()).then(()=>alert("✅ Сохранено!")).catch(()=>alert("❌ Ошибка"));
-    }
-    function sendFeedback() {
-        fetch('/send_feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: document.getElementById('fb_msg').value, contact: document.getElementById('fb_contact').value }) })
-        .then(() => { alert("Отправлено!"); document.getElementById('fb_msg').value = ""; });
-    }
-</script>
-</body>
-</html>
+        <h5 class
 
 
 

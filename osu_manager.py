@@ -228,4 +228,3 @@ class OsuManager:
             "text": f"🏆 {acc}% | {pp_str} | {best.get('rank')}{mods_str} | {best.get('max_combo')}x",
             "stars": stars
         }
-

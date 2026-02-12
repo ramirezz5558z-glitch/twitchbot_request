@@ -111,25 +111,48 @@
 <audio id="alert-sound" src="/static/alert.wav" preload="auto"></audio>
 
 <script>
-    const socket = io();
+    // Настройка сокетов специально для работы через прокси (Render/Amvera)
+    const socket = io({
+        transports: ["polling", "websocket"],
+        upgrade: true
+    });
+
     const sound = document.getElementById('alert-sound');
     const dot = document.getElementById('dot');
     const statusText = document.getElementById('status-text');
 
     document.addEventListener("DOMContentLoaded", () => {
-        try { loadFromStorage(); } catch (e) { localStorage.removeItem('osu_requests'); }
+        try { 
+            loadFromStorage(); 
+        } catch (e) { 
+            console.error("Storage error:", e);
+            localStorage.removeItem('osu_requests'); 
+        }
     });
 
-    socket.on('connect', () => { dot.className = 'status-dot online'; statusText.innerText = 'Online'; });
-    socket.on('disconnect', () => { dot.className = 'status-dot offline'; statusText.innerText = 'Offline'; });
+    // Улучшенная индикация статуса
+    socket.on('connect', () => { 
+        dot.className = 'status-dot online'; 
+        statusText.innerText = 'Online'; 
+        console.log("Socket connected!");
+    });
+
+    socket.on('disconnect', () => { 
+        dot.className = 'status-dot offline'; 
+        statusText.innerText = 'Offline'; 
+    });
+
     socket.on('new_request', function(data) {
-        sound.play().catch(() => {});
+        // Воспроизведение звука (браузер может блокировать до первого клика пользователя)
+        sound.play().catch(e => console.log("Sound play blocked until user interaction"));
+        
         const uniqueId = 'card-' + Date.now();
         const requestData = { id: uniqueId, ...data };
         saveToStorage(requestData);
         renderCard(requestData);
     });
 
+    // Вспомогательные функции
     function extractLink(text) { if (!text) return null; const m = text.match(/(https?:\/\/[^\s]+)/); return m ? m[0] : null; }
     function cleanMessage(text) { if (!text) return ""; return text.replace(/(https?:\/\/[^\s]+)/g, '').trim(); }
     function openCardLink(url) { if (url && url !== 'null') window.open(url, '_blank'); }
@@ -137,6 +160,10 @@
     function renderCard(data) {
         if (!data || !data.user) return;
         const container = document.getElementById('requests-container');
+        
+        // Проверка, нет ли уже такой карточки (защита от дублей)
+        if (document.getElementById(data.id)) return;
+
         const downloadLink = extractLink(data.full_msg);
         const cleanMsg = cleanMessage(data.full_msg);
         
@@ -150,9 +177,7 @@
         const cardHtml = `
             <div class="col-md-6 col-lg-4 mb-4" id="${data.id}">
                 <div class="card-request shadow" onclick="openCardLink('${downloadLink}')">
-                    
                     <div class="card-background-layer" style="background-image: url('${bg}');"></div>
-
                     <div class="request-content">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h6 class="m-0 d-flex align-items-center">
@@ -163,7 +188,6 @@
                         </div>
                         <p class="map-title text-white fw-bold mb-3 text-truncate" title="${data.map_name}">${data.map_name}</p>
                         <div class="msg-box">${msgDisplay}</div>
-                        
                         <div class="action-buttons">
                             <button class="btn btn-success" 
                                 data-user="${data.user}" 
@@ -172,12 +196,10 @@
                                 onclick="event.stopPropagation(); acceptRequest(this, '${data.id}', '@${data.user}, принято! 🔨')">
                                 ПРИНЯТЬ
                             </button>
-                            
                             <button class="btn btn-danger" 
                                 onclick="event.stopPropagation(); declineRequest('${data.id}', '@${data.user}, отказано. ❌')">
                                 ОТКАЗ
                             </button>
-                            
                             <button class="btn btn-light" 
                                 onclick="event.stopPropagation(); finishRequest('${data.id}', '@${data.user}, готово! ✅')">
                                 ГОТОВО
@@ -195,21 +217,56 @@
     function clearStorage() { localStorage.removeItem('osu_requests'); }
 
     function acceptRequest(btn, id, msg) {
-        btn.disabled = true; btn.classList.replace('btn-success', 'btn-secondary'); btn.innerText = "⏳..."; 
+        const originalText = btn.innerText;
+        btn.disabled = true; 
+        btn.innerText = "ОТПРАВЛЕНО"; 
+        
+        // Отправка боту в чат
         socket.emit('bot_action', { message: msg });
-        socket.emit('set_current_track', { user: btn.getAttribute('data-user'), map_name: btn.getAttribute('data-map'), bg_url: btn.getAttribute('data-bg') });
+        // Отправка в OBS виджет
+        socket.emit('set_current_track', { 
+            user: btn.getAttribute('data-user'), 
+            map_name: btn.getAttribute('data-map'), 
+            bg_url: btn.getAttribute('data-bg') 
+        });
+
+        // Через 2 секунды возвращаем кнопку (на случай если захочется переотправить)
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }, 2000);
     }
-    function finishRequest(id, msg) { if (msg) socket.emit('bot_action', { message: msg }); socket.emit('mark_obs_done'); removeCardVisuals(id); }
-    function declineRequest(id, msg) { if (msg) socket.emit('bot_action', { message: msg }); socket.emit('mark_obs_rejected'); removeCardVisuals(id); }
+
+    function finishRequest(id, msg) { 
+        if (msg) socket.emit('bot_action', { message: msg }); 
+        socket.emit('mark_obs_done'); 
+        removeCardVisuals(id); 
+    }
+
+    function declineRequest(id, msg) { 
+        if (msg) socket.emit('bot_action', { message: msg }); 
+        socket.emit('mark_obs_rejected'); 
+        removeCardVisuals(id); 
+    }
+
     function removeCardVisuals(id) {
         removeFromStorage(id);
         const card = document.getElementById(id);
-        if (card) { card.style.transition = "all 0.4s ease"; card.style.opacity = "0"; card.style.transform = "translateY(20px) scale(0.9)"; setTimeout(() => card.remove(), 400); }
+        if (card) { 
+            card.style.transition = "all 0.4s ease"; 
+            card.style.opacity = "0"; 
+            card.style.transform = "translateY(20px) scale(0.9)"; 
+            setTimeout(() => card.remove(), 400); 
+        }
     }
-    function clearAll() { if(confirm("Очистить все карточки?")) { document.getElementById('requests-container').innerHTML = ''; clearStorage(); } }
+
+    function clearAll() { 
+        if(confirm("Очистить все карточки?")) { 
+            document.getElementById('requests-container').innerHTML = ''; 
+            clearStorage(); 
+        } 
+    }
 </script>
-</body>
-</html>
 
 
 

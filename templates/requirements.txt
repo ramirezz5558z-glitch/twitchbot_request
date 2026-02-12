@@ -2,4 +2,9 @@ Flask
 Flask-SocketIO
 twitchio
 aiohttp
-simple-websocket
+Flask-SQLAlchemy
+Flask-Login
+requests
+gunicorn
+gevent
+gevent-websocket
