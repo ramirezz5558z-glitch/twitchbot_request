@@ -5,101 +5,47 @@ import random
 from osu_manager import OsuManager
 
 class Bot(commands.Bot):
-    def __init__(self, token, channel, app_callback, allowed_domains, osu_config):
-        # Очищаем токен от префикса oauth:, если он есть
+    def __init__(self, token, channel, app_callback, osu_config):
         clean_token = token.replace('oauth:', '').strip()
-        
-        # Инициализируем родительский класс twitchio
-        super().__init__(token=clean_token, prefix='!', initial_channels=[channel])
+        super().__init__(token=f"oauth:{clean_token}", prefix='!', initial_channels=[channel])
         
         self.app_callback = app_callback
         self.channel_name = channel
-        self.loop = None # Будет задан из app.py
-        self.osu_config_ref = osu_config
-        
-        # Инициализируем менеджер osu!
         self.osu = OsuManager(
             client_id=osu_config.get('osu_client_id'),
             client_secret=osu_config.get('osu_client_secret'),
             username=osu_config.get('osu_username')
         )
-        self.current_skin = "Стандартный (Измени через !setskin)"
+        self.current_skin = "Стандартный"
 
     async def event_ready(self):
-        print(f"✅ Успешный вход в чат: {self.nick}")
-        # Получаем API токен osu! при запуске
-        try:
-            await self.osu.get_token()
-            print("✅ Токен osu! API получен")
-        except Exception as e:
-            print(f"❌ Ошибка получения токена osu!: {e}")
-
-    async def send_chat_message(self, message_text):
-        channel = self.get_channel(self.channel_name)
-        if channel:
-            await channel.send(message_text)
-
-    # --- КОМАНДЫ ЧАТА ---
-
-    @commands.command(name='skin', aliases=['скин'])
-    async def skin_command(self, ctx):
-        await ctx.send(f"🎨 Скин: {self.current_skin}")
-
-    @commands.command(name='setskin')
-    async def set_skin_command(self, ctx):
-        # Только для модераторов и стримера
-        if ctx.author.is_mod or ctx.author.name.lower() == self.channel_name.lower():
-            self.current_skin = ctx.message.content.replace("!setskin", "").strip()
-            await ctx.send("✅ Скин обновлен!")
-
-    @commands.command(name='stats', aliases=['rank'])
-    async def stats_command(self, ctx):
-        stats = await self.osu.get_user_stats()
-        if stats:
-            await ctx.send(f"📊 {stats['username']}: #{stats['rank']} | {stats['pp']}pp | {round(stats['acc'], 2)}%")
+        print(f"✅ Бот залогинился как: {self.nick}")
+        await self.osu.get_token()
 
     @commands.command(name='roll')
     async def roll_command(self, ctx):
-        parts = ctx.message.content.split()
-        limit = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 100
-        await ctx.send(f"🎲 {ctx.author.name}: {random.randint(1, limit)}")
+        num = random.randint(1, 100)
+        await ctx.send(f"🎲 {ctx.author.name} выкинул {num}!")
 
-    # --- ОБРАБОТКА СООБЩЕНИЙ ---
+    @commands.command(name='skin')
+    async def skin_command(self, ctx):
+        await ctx.send(f"🎨 Текущий скин: {self.current_skin}")
 
     async def event_message(self, message):
-        # Игнорируем сообщения от самого бота
-        if message.echo:
-            return
+        if message.echo: return
 
-        # Сначала проверяем, не команда ли это
+        # Обработка команд (!roll и т.д.)
         await self.handle_commands(message)
 
+        # Поиск ссылок osu!
         content = message.content
-        beatmap_id = None
-        
-        # Регулярные выражения для поиска ссылок на карты
-        match_set = re.search(r'osu\.ppy\.sh/beatmapsets/\d+#osu/(\d+)', content)
-        match_simple = re.search(r'osu\.ppy\.sh/(?:b|beatmaps)/(\d+)', content)
+        # Регулярка ловит: /b/ID, /beatmaps/ID, /beatmapsets/ID#osu/ID
+        regex = r"osu\.ppy\.sh/(?:beatmapsets/\d+#osu|b|beatmaps)/(\d+)"
+        match = re.search(regex, content)
 
-        if match_set:
-            beatmap_id = match_set.group(1)
-        elif match_simple:
-            beatmap_id = match_simple.group(1)
-        
-        # --- ВОТ ТУТ БЫЛА ОШИБКА, ИСПРАВЛЕНО: ---
-        if beatmap_id:
-            print(f"🔎 Найдена карта: {beatmap_id}")
-            # Получаем инфу о карте через osu_manager
+        if match:
+            beatmap_id = match.group(1)
+            print(f"🔎 Найдена карта ID: {beatmap_id}")
             map_info = await self.osu.get_beatmap_info(beatmap_id)
-            if map_info:
-                # Отправляем данные в Flask/SocketIO через callback
-                if self.app_callback:
-                    self.app_callback(message.author.name, map_info, content)
-                
-                # Опционально: пишем в чат, что карта принята
-                # await message.channel.send(f"📥 Запрос принят: {map_info['artist']} - {map_info['title']}")
-
-    def stop(self):
-        # Метод для корректной остановки (вызывается из app.py)
-        # Twitchio работает на asyncio, поэтому закрытие будет через loop
-        pass
+            if map_info and self.app_callback:
+                self.app_callback(message.author.name, map_info, content)
