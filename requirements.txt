@@ -1,10 +1,7 @@
-Flask
-Flask-SocketIO
-twitchio
-aiohttp
-Flask-SQLAlchemy
-Flask-Login
-requests
+flask
+flask-sqlalchemy
+flask-socketio
+eventlet>=0.33.3
 gunicorn
-gevent
-gevent-websocket
+requests
+twitchio

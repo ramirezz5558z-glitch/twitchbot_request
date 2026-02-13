@@ -92,6 +92,38 @@ def save_config():
     
     return jsonify({"status": "success", "message": "Settings saved and bot restarted"})
 
+    @app.route('/login/osu')
+def login_osu():
+    # Отправляем пользователя на osu! за разрешением
+    osu_url = (
+        f"https://osu.ppy.sh/oauth/authorize?client_id={OSU_CLIENT_ID}"
+        f"&redirect_uri={REDIRECT_URI}&response_type=code&scope=identify"
+    )
+    return redirect(osu_url)
+
+@app.route('/callback')
+def callback():
+    code = request.args.get('code')
+    # Обмениваем код на токен доступа
+    data = {
+        'client_id': OSU_CLIENT_ID,
+        'client_secret': OSU_CLIENT_SECRET,
+        'code': code,
+        'grant_type': 'authorization_code',
+        'redirect_uri': REDIRECT_URI
+    }
+    r = requests.post('https://osu.ppy.sh/oauth/token', data=data).json()
+    
+    # Получаем инфо о пользователе (его ник и ID)
+    headers = {'Authorization': f"Bearer {r['access_token']}"}
+    user_data = requests.get('https://osu.ppy.sh/api/v2/me', headers=headers).json()
+    
+    # Сохраняем в сессию, что он вошел
+    session['user_id'] = user_data['id']
+    session['username'] = user_data['username']
+    
+    return redirect('/') # Ведем в панель управления
+
 # --- ОБРАБОТКА СОБЫТИЙ SOCKET.IO ---
 
 @socketio.on('bot_action')

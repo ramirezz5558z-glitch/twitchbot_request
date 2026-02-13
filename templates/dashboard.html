@@ -94,15 +94,15 @@
         
         <div class="d-flex align-items-center gap-3">
             <div class="small p-2 rounded bg-dark border border-secondary"><span class="status-dot offline" id="dot"></span><span id="status-text">Ожидание...</span></div>
-            <a href="/settings" class="btn btn-outline-secondary btn-sm">⚙️ Настройки</a>
+            <a href="/settings" class="btn btn-outline-secondary btn-sm"> Настройки</a>
         </div>
     </div>
 
     <hr class="border-secondary my-4">
 
     <div class="d-flex justify-content-between align-items-end mb-3">
-        <h4 class="m-0">📥 Очередь запросов</h4>
-        <button class="btn btn-sm btn-outline-danger" onclick="clearAll()">🗑️ Очистить список</button>
+        <h4 class="m-0"> Очередь запросов</h4>
+        <button class="btn btn-sm btn-outline-danger" onclick="clearAll()"> Очистить список</button>
     </div>
     
     <div id="requests-container" class="row"></div>
@@ -193,15 +193,15 @@
                                 data-user="${data.user}" 
                                 data-map="${data.map_name}" 
                                 data-bg="${bg}" 
-                                onclick="event.stopPropagation(); acceptRequest(this, '${data.id}', '@${data.user}, принято! 🔨')">
+                                onclick="event.stopPropagation(); acceptRequest(this, '${data.id}', '@${data.user}, принято!')">
                                 ПРИНЯТЬ
                             </button>
                             <button class="btn btn-danger" 
-                                onclick="event.stopPropagation(); declineRequest('${data.id}', '@${data.user}, отказано. ❌')">
+                                onclick="event.stopPropagation(); declineRequest('${data.id}', '@${data.user}, отказано.')">
                                 ОТКАЗ
                             </button>
                             <button class="btn btn-light" 
-                                onclick="event.stopPropagation(); finishRequest('${data.id}', '@${data.user}, готово! ✅')">
+                                onclick="event.stopPropagation(); finishRequest('${data.id}', '@${data.user}, готово!')">
                                 ГОТОВО
                             </button>
                         </div>

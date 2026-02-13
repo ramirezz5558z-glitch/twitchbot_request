@@ -86,4 +86,20 @@ class Bot(commands.Bot):
         elif match_simple:
             beatmap_id = match_simple.group(1)
         
-        if beat
+        # --- ВОТ ТУТ БЫЛА ОШИБКА, ИСПРАВЛЕНО: ---
+        if beatmap_id:
+            print(f"🔎 Найдена карта: {beatmap_id}")
+            # Получаем инфу о карте через osu_manager
+            map_info = await self.osu.get_beatmap_info(beatmap_id)
+            if map_info:
+                # Отправляем данные в Flask/SocketIO через callback
+                if self.app_callback:
+                    self.app_callback(message.author.name, map_info, content)
+                
+                # Опционально: пишем в чат, что карта принята
+                # await message.channel.send(f"📥 Запрос принят: {map_info['artist']} - {map_info['title']}")
+
+    def stop(self):
+        # Метод для корректной остановки (вызывается из app.py)
+        # Twitchio работает на asyncio, поэтому закрытие будет через loop
+        pass

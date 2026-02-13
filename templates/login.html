@@ -2,24 +2,53 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Вход</title>
+    <title>Вход | Osu! Bot Service</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
-        body { background: #0f0f0f url('/static/img/bg.jpg') center/cover; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .card { background: rgba(0,0,0,0.8); border: 1px solid #333; color: white; border-radius: 20px; width: 100%; max-width: 400px; backdrop-filter: blur(10px); }
-        .btn-osu { background: #ff66aa; color: white; font-weight: bold; border-radius: 50px; transition: 0.3s; border: none; }
-        .btn-osu:hover { background: #ff3388; transform: scale(1.05); color: white; }
+        body { 
+            background: #0f0f0f; color: white; height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Segoe UI', sans-serif;
+            background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://osu.ppy.sh/wiki/images/thumb/1/11/Intro-bg.jpg/800px-Intro-bg.jpg');
+            background-size: cover;
+        }
+        .login-card {
+            background: rgba(20, 20, 20, 0.95);
+            padding: 50px; border-radius: 40px;
+            box-shadow: 0 20px 50px rgba(255, 102, 170, 0.3);
+            width: 100%; max-width: 450px; text-align: center;
+            border: 1px solid rgba(255, 102, 170, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        .osu-logo { width: 100px; margin-bottom: 30px; }
+        
+        .btn-osu { 
+            background: #ff66aa; color: white; border: none; 
+            border-radius: 50px; padding: 15px 30px; width: 100%; 
+            font-weight: 800; font-size: 1.1em;
+            transition: 0.3s; text-decoration: none; display: inline-block;
+        }
+        .btn-osu:hover { 
+            background: #ff88bb; transform: translateY(-3px); 
+            box-shadow: 0 10px 20px rgba(255, 102, 170, 0.4);
+            color: white;
+        }
+        .info-text { font-size: 0.9em; color: #aaa; margin-top: 20px; }
     </style>
 </head>
 <body>
-    <div class="card p-5 text-center">
-        <img src="/static/img/osu.png" width="80" class="mx-auto mb-3">
-        <h3 class="mb-4 fw-bold">Osu! Dashboard</h3>
-        <p class="text-white-50 mb-4">Авторизуйтесь, чтобы управлять реквестами</p>
+    <div class="login-card">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/d/d3/Osu%21Logo_2016.svg" class="osu-logo">
+        <h2 class="fw-bold mb-3">Osu! Request Bot</h2>
+        <p class="mb-5 opacity-75">Авторизуйтесь через osu!, чтобы настроить бота для своего Twitch-канала</p>
         
-        <a href="{{ auth_url }}" class="btn btn-osu w-100 py-3 fs-5">
-            🌸 Войти через Osu!
+        <a href="/login/osu" class="btn-osu">
+            ВОЙТИ ЧЕРЕЗ OSU!
         </a>
+        
+        <div class="info-text">
+            Безопасно. Мы получаем только ваш никнейм и ID.
+        </div>
     </div>
 </body>
 </html>
