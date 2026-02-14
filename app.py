@@ -1,6 +1,7 @@
 import eventlet
 eventlet.monkey_patch()
 
+# Теперь все остальное
 import os
 import threading
 import asyncio
